@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SafeUndo · USSD simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#121212; --card:#1e1e1e; --raised:#2f2f2f; --line:#3a4254; --text:#f2f2f2; --muted:#a3a7ae;
+    --green:#53a24a; --green-soft:#1d2e1b; --red:#e5484d; --amber:#e8a33d;
+    --font:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);}
+  body{min-height:100vh;display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:32px;padding:28px;max-width:1180px;margin:0 auto}
+  @media (max-width:860px){body{grid-template-columns:1fr;padding:16px}}
+  h1{font-size:20px;margin:0 0 4px;font-weight:800;letter-spacing:-.01em}
+  h2{font-size:14px;margin:0 0 10px;font-weight:800}
+  p{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
+  button{font:inherit;cursor:pointer}
+  :focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+  .banner{display:flex;gap:8px;align-items:center;background:var(--green-soft);border:1px solid #2d4a29;color:#b9e0b4;
+    padding:8px 12px;border-radius:12px;font-size:12px;margin:12px 0 18px}
+
+  /* phone */
+  .phone{width:100%;max-width:380px;margin:0 auto;background:#0a0a0a;border:1px solid var(--line);border-radius:36px;padding:14px;
+    box-shadow:0 20px 50px rgba(0,0,0,.5)}
+  .screen{background:#101114;border-radius:24px;min-height:620px;display:flex;flex-direction:column;overflow:hidden;position:relative}
+  .status{display:flex;justify-content:space-between;padding:12px 18px 0;font-size:12px;color:var(--muted)}
+  .dialer{flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:20px}
+  .dialer .num{font-size:30px;font-weight:600;text-align:center;letter-spacing:.04em;margin-bottom:22px;background:none;border:0;color:var(--text);width:100%}
+  .call{background:var(--green);border:0;color:#fff;border-radius:999px;padding:14px;font-weight:800;font-size:15px}
+  .hint{text-align:center;margin-bottom:14px}
+  .ussd-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.35)}
+  .ussd{width:100%;background:#2b2c2f;border-radius:28px;padding:22px 20px 14px;font-family:Roboto,system-ui,sans-serif}
+  .ussd pre{white-space:pre-wrap;word-wrap:break-word;margin:0 0 14px;font:400 15px/1.5 Roboto,system-ui,sans-serif;color:#e8e8e8}
+  .ussd input{width:100%;background:transparent;border:0;border-bottom:2px solid var(--green);color:#fff;font:400 16px Roboto,system-ui;padding:6px 0;outline:none}
+  .ussd .btns{display:flex;justify-content:flex-end;gap:22px;margin-top:16px}
+  .ussd .btns button{background:none;border:0;color:#7fd377;font:500 14px Roboto,system-ui;padding:8px 4px}
+  .ussd.warn pre .t{color:var(--amber);font-weight:700}
+  .done{padding:0 6px 8px;font-size:12px;color:var(--muted)}
+
+  /* console */
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:16px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  select,.chip{background:var(--raised);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:9px 12px;font:inherit;font-size:13px}
+  .chip{border-radius:999px;padding:6px 12px;font-size:12px}
+  .chip:hover{border-color:var(--green)}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px;margin-top:12px}
+  .kv span:nth-child(odd){color:var(--muted)}
+  .btn{background:var(--green);color:#fff;border:0;border-radius:12px;padding:9px 14px;font-weight:800;font-size:13px}
+  .btn.ghost{background:var(--raised);border:1px solid var(--line)}
+  pre.json{background:#0d0d0e;border:1px solid var(--line);border-radius:12px;padding:12px;max-height:320px;overflow:auto;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;color:#cfd3da;margin:10px 0 0}
+  a{color:#7fd377}
+</style>
+</head>
+<body>
+<main>
+  <h1>SafeUndo on USSD <span style="color:var(--muted);font-weight:600">*334#</span></h1>
+  <p>Proposed text-based experience. Same backend and same case data as the simulated My OneApp.</p>
+  <div class="banner" role="note">Simulated channel. Not connected to the live M-PESA or USSD service.</div>
+
+  <div class="phone"><div class="screen" id="screen">
+    <div class="status"><span id="clock">12:00</span><span>5G ▮▮▮</span></div>
+    <div class="dialer" id="dialer">
+      <p class="hint">Dial the proposed M-PESA USSD code</p>
+      <input class="num" id="dial" value="*334#" aria-label="Dial code">
+      <button class="call" id="call">Call</button>
+    </div>
+    <div class="ussd-wrap" id="ussdWrap" hidden>
+      <div class="ussd" id="ussd" role="dialog" aria-live="polite">
+        <pre id="ussdText"></pre>
+        <input id="ussdIn" autocomplete="off" inputmode="numeric" aria-label="USSD reply">
+        <div class="btns"><button id="cancel">Cancel</button><button id="send">Send</button></div>
+      </div>
+    </div>
+  </div></div>
+</main>
+
+<aside>
+  <section class="panel">
+    <h2>Demo customer</h2>
+    <div class="row"><select id="cust" aria-label="Demo customer"></select>
+      <button class="btn ghost" id="reset">Reset demo data</button></div>
+    <div class="kv" id="custInfo"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Try these replies</h2>
+    <p style="margin-bottom:10px">Click a chip to fill the reply box at the right step.</p>
+    <div class="row" id="chips"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Fast-forward a case (simulated)</h2>
+    <p style="margin-bottom:10px">Moves the selected case to its next status and advances the demo clock by 4 hours, so the prediction updates.</p>
+    <div class="row"><select id="caseSel" aria-label="Case"></select>
+      <button class="btn" id="advance">Advance 4h</button></div>
+    <div class="kv" id="clockInfo"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Last API call</h2>
+    <p>What the channel sent and received, including the model's reasons.</p>
+    <pre class="json" id="inspector">Nothing yet.</pre>
+    <p style="margin-top:10px"><a href="/api/ml/metrics" target="_blank" rel="noopener">ML metrics</a> · <a href="/docs" target="_blank" rel="noopener">API docs</a></p>
+  </section>
+</aside>
+
+<script>
+const API = new URLSearchParams(location.search).get("api") || location.origin;
+const $ = id => document.getElementById(id);
+const kes = n => "KSh " + Math.round(n).toLocaleString("en-KE");
+let cust = null, step = "idle", ctx = {};
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {headers: {"Content-Type": "application/json"}, ...opts});
+  const data = await res.json().catch(() => ({}));
+  $("inspector").textContent = `${opts.method || "GET"} ${path}\n` + (opts.body ? opts.body + "\n" : "") +
+    `→ ${res.status}\n` + JSON.stringify(data, null, 2);
+  if (!res.ok) throw Object.assign(new Error(data.detail || "Request failed"), {status: res.status});
+  return data;
+}
+
+/* ---------- console ---------- */
+async function loadCustomers() {
+  const list = await api("/api/customers");
+  $("cust").innerHTML = list.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+  cust = list[0].id; await refreshConsole();
+}
+async function refreshConsole() {
+  const [c, cases, clock] = await Promise.all([api(`/api/customers/${cust}`), api(`/api/customers/${cust}/cases`), api("/api/demo/clock")]);
+  $("custInfo").innerHTML = `<span>Balance</span><span>${kes(c.balance)}</span><span>Usually sends</span><span>${kes(c.typical_amount.p25)}–${kes(c.typical_amount.p75)}</span>
+    <span>Known contacts</span><span>${c.frequent_contacts.length ? c.frequent_contacts.map(x => x.name).join(", ") : "none yet"}</span>`;
+  const open = cases.filter(x => !["completed", "rejected"].includes(x.status));
+  $("caseSel").innerHTML = open.length ? open.map(x => `<option>${x.ref}</option>`).join("") : "<option value=''>No open cases</option>";
+  $("advance").disabled = !open.length;
+  $("clockInfo").innerHTML = `<span>Demo clock</span><span>${new Date(clock.now).toLocaleString()}</span><span>Offset</span><span>+${clock.offset_hours}h</span>`;
+  $("inspector").dataset.keep = "1";
+}
+function chips(list) {
+  $("chips").innerHTML = list.map(v => `<button class="chip" data-v="${v}">${v}</button>`).join("");
+}
+$("chips").addEventListener("click", e => { const v = e.target.dataset.v; if (v) { $("ussdIn").value = v; $("ussdIn").focus(); } });
+
+/* ---------- USSD engine ---------- */
+function show(text, {input = true, warn = false} = {}) {
+  $("dialer").hidden = true; $("ussdWrap").hidden = false;
+  $("ussd").classList.toggle("warn", warn);
+  $("ussdText").innerHTML = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/^(Unusual transaction detected)/, '<span class="t">$1</span>');
+  $("ussdIn").hidden = !input; $("send").textContent = input ? "Send" : "OK";
+  $("ussdIn").value = ""; if (input) $("ussdIn").focus();
+}
+function endSession() { step = "idle"; ctx = {}; $("ussdWrap").hidden = true; $("dialer").hidden = false; chips([]); refreshConsole(); }
+
+const MENU = "M-PESA\n1. Send Money\n2. Lipa na M-PESA\n3. SafeUndo: fix a mistake";
+function menu() { step = "menu"; chips(["1", "2", "3"]); show(MENU); }
+
+async function handle(v) {
+  v = v.trim();
+  try {
+    switch (step) {
+      case "menu":
+        if (v === "1") { ctx = {tx_type: "send_money"}; step = "num"; chips(["0700123401", "0799999999"]); return show("Send Money\nEnter mobile number:"); }
+        if (v === "2") { step = "lipa"; chips(["1", "2", "3"]); return show("Lipa na M-PESA\n1. Buy Goods\n2. PayBill\n3. Pochi la Biashara\n0. Back"); }
+        if (v === "3") { step = "su"; chips(["1", "2", "0"]); return show("SafeUndo\n1. Report a mistake\n2. Track a case\n0. Back"); }
+        return show("Invalid choice.\n\n" + MENU);
+      case "lipa": {
+        const m = {"1": "buy_goods", "2": "paybill", "3": "pochi"}[v];
+        if (v === "0") return menu();
+        if (!m) return show("Invalid choice.\n1. Buy Goods\n2. PayBill\n3. Pochi la Biashara\n0. Back");
+        ctx = {tx_type: m}; step = "num"; chips(m === "pochi" ? ["0700123401"] : ["523417", "247247"]);
+        return show({buy_goods: "Enter till number:", paybill: "Enter business number:", pochi: "Enter Pochi number:"}[m]);
+      }
+      case "num":
+        ctx.recipient = v;
+        if (ctx.tx_type === "paybill") { step = "acct"; chips(["ACC001"]); return show("Enter account number:"); }
+        step = "amt"; chips(["800", "5000", "20000"]); return show("Enter amount:");
+      case "acct": ctx.account_ref = v; step = "amt"; chips(["800", "5000", "20000"]); return show("Enter amount:");
+      case "amt": {
+        const amount = Number(v);
+        if (!(amount > 0)) return show("Enter a valid amount:");
+        ctx.amount = amount;
+        const r = await api("/api/protect/score", {method: "POST", body: JSON.stringify({customer_id: cust, tx_type: ctx.tx_type, recipient: ctx.recipient, amount})});
+        if (r.flagged) { step = "warn"; chips(["1", "2"]); return show(r.ussd_text, {warn: true}); }
+        return confirmScreen();
+      }
+      case "warn":
+        if (v === "1") return confirmScreen();
+        if (v === "2") return show("Transaction cancelled.\nNo money was sent.", {input: false}), step = "end";
+        return show("Reply 1 to continue or 2 to cancel.");
+      case "confirm":
+        if (v === "2") return show("Transaction cancelled.", {input: false}), step = "end";
+        if (v !== "1") return show("Reply 1 to confirm or 2 to cancel.");
+        { const lk = ["send_money", "pochi"].includes(ctx.tx_type) ? await api(`/api/recipients/lookup?customer_id=${cust}&tx_type=${ctx.tx_type}&number=${encodeURIComponent(ctx.recipient)}`) : null;
+          const tx = await api("/api/transactions", {method: "POST", body: JSON.stringify({customer_id: cust, tx_type: ctx.tx_type, recipient: ctx.recipient, amount: ctx.amount, recipient_name: lk ? lk.name : null})});
+          step = "end";
+          return show(`${tx.mpesa_ref} Confirmed. ${kes(tx.amount)} sent to ${lk ? lk.name : tx.recipient}.\nNew balance ${kes(tx.balance)}.\nMade a mistake? Dial *334# > 3.`, {input: false}); }
+      case "su":
+        if (v === "0") return menu();
+        if (v === "1") {
+          const txs = (await api(`/api/customers/${cust}/transactions?limit=5`));
+          ctx.txs = txs; step = "su_pick"; chips(txs.map((_, i) => String(i + 1)));
+          return show("Which transaction?\n" + txs.map((t, i) => `${i + 1}. ${kes(t.amount)} ${t.tx_type_label} ${t.recipient_name || t.recipient}${t.has_open_case ? " *" : ""}`).join("\n") + "\n* case open\n0. Back");
+        }
+        if (v === "2") {
+          const cs = await api(`/api/customers/${cust}/cases`);
+          if (!cs.length) return show("You have no cases yet.\n0. Back");
+          ctx.cases = cs; step = "su_cases"; chips(cs.map((_, i) => String(i + 1)));
+          return show("Your cases\n" + cs.map((c, i) => `${i + 1}. ${c.ref} ${c.status_label}`).join("\n") + "\n0. Back");
+        }
+        return show("Invalid choice.\n1. Report a mistake\n2. Track a case\n0. Back");
+      case "su_pick": {
+        if (v === "0") { step = "su"; return show("SafeUndo\n1. Report a mistake\n2. Track a case\n0. Back"); }
+        const t = ctx.txs[Number(v) - 1]; if (!t) return show("Invalid choice. Pick a number from the list.");
+        ctx.tx = t; step = "su_reason"; chips(["1", "2", "3", "4", "5"]);
+        return show("Reason?\n1. Wrong number\n2. Wrong amount\n3. Fraud\n4. Refund\n5. Other reason\n0. Back");
+      }
+      case "su_reason": {
+        if (v === "0") { step = "su"; return show("SafeUndo\n1. Report a mistake\n2. Track a case\n0. Back"); }
+        const reason = ["wrong_number", "wrong_amount", "fraud", "refund", "other"][Number(v) - 1];
+        if (!reason) return show("Invalid choice. Reply 1-5.");
+        const c = await api("/api/cases", {method: "POST", body: JSON.stringify({customer_id: cust, transaction_id: ctx.tx.id, reason})});
+        step = "end";
+        const first = c.guidance.steps[0];
+        return show(`${c.duplicate ? "Case already open" : "Case tracked"}: ${c.ref}\n${first}\nTrack it: *334# > 3 > 2`, {input: false});
+      }
+      case "su_cases": {
+        if (v === "0") { step = "su"; return show("SafeUndo\n1. Report a mistake\n2. Track a case\n0. Back"); }
+        const sel = ctx.cases[Number(v) - 1]; if (!sel) return show("Invalid choice.");
+        const d = await api(`/api/cases/${sel.ref}`); const p = d.prediction;
+        step = "su_case"; chips(["0"]);
+        const lines = [`${d.ref} ${d.status_label}`, `${kes(d.transaction.amount)} ${d.transaction.tx_type_label}`];
+        if (p) lines.push(`Est. ${p.label}`, `Delay risk ${Math.round(p.delay_risk * 100)}% (${p.risk_level})`, p.action);
+        else if (d.rejection_reason) lines.push(d.rejection_reason);
+        lines.push("(simulated)", "0. Back");
+        return show(lines.join("\n"));
+      }
+      case "su_case": return menu();
+      case "end": return endSession();
+    }
+  } catch (e) { show(`${e.message}\n\nTry again or press Cancel.`); }
+}
+function confirmScreen() {
+  step = "confirm"; chips(["1", "2"]);
+  return show(`Send ${kes(ctx.amount)} to ${ctx.recipient}?\n1. Confirm\n2. Cancel`);
+}
+
+$("call").onclick = () => { if (/^\*334#$/.test($("dial").value.trim())) menu(); else { $("dial").value = "*334#"; } };
+$("send").onclick = () => step === "end" ? endSession() : handle($("ussdIn").value);
+$("ussdIn").addEventListener("keydown", e => { if (e.key === "Enter") $("send").click(); });
+$("cancel").onclick = endSession;
+$("cust").onchange = e => { cust = e.target.value; endSession(); };
+$("advance").onclick = async () => {
+  const ref = $("caseSel").value; if (!ref) return;
+  await api(`/api/cases/${ref}/simulate-advance`, {method: "POST", body: JSON.stringify({hours: 4})}); refreshConsole();
+};
+$("reset").onclick = async () => { await api("/api/demo/reset", {method: "POST"}); await loadCustomers(); endSession(); };
+setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}); }, 1000);
+loadCustomers();
+</script>
+</body>
+</html>
