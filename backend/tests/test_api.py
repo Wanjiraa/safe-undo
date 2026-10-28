@@ -92,5 +92,15 @@ def test_anime_presentation_strict_180s_timeline(client):
     assert r.status_code == 200
     html = r.text
     assert "const TOTAL_MS = 180000;" in html
-    for code in ["00:00–00:20", "00:20–00:45", "00:45–01:20", "01:20–01:35", "01:35–02:00", "02:00–02:45", "02:45–03:00"]:
+    assert "Naruto" in html
+    for code in [
+        "00:00–00:15",
+        "00:15–00:40",
+        "00:40–01:05",
+        "01:05–01:20",
+        "01:20–01:55",
+        "01:55–02:25",
+        "02:25–02:45",
+        "02:45–03:00",
+    ]:
         assert code in html
