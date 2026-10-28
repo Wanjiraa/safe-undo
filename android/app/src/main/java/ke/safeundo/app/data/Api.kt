@@ -164,19 +164,23 @@ interface SafeUndoApi {
 val AppJson = Json { ignoreUnknownKeys = true; coerceInputValues = true; encodeDefaults = true; explicitNulls = false }
 
 object ApiClient {
-    private val fallbackHosts = listOf("127.0.0.1", "10.0.2.2", "10.76.110.121")
+    private val fallbackHosts = listOf("127.0.0.1", "10.73.254.121", "10.0.2.2", "10.76.110.121")
+    @Volatile private var preferredHost: String = "127.0.0.1"
 
     val api: SafeUndoApi by lazy {
         val http = OkHttpClient.Builder()
-            .connectTimeout(3, TimeUnit.SECONDS)
+            .connectTimeout(1500, TimeUnit.MILLISECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .addInterceptor { chain ->
                 val req = chain.request()
+                val orderedHosts = listOf(preferredHost) + fallbackHosts.filter { it != preferredHost }
                 var lastErr: IOException? = null
-                for (host in fallbackHosts) {
+                for (host in orderedHosts) {
                     val url = req.url.newBuilder().scheme("http").host(host).port(8000).build()
                     try {
-                        return@addInterceptor chain.proceed(req.newBuilder().url(url).build())
+                        val resp = chain.proceed(req.newBuilder().url(url).build())
+                        preferredHost = host
+                        return@addInterceptor resp
                     } catch (e: IOException) {
                         lastErr = e
                     }

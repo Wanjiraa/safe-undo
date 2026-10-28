@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 data class UiState(
     val customers: List<Customer> = emptyList(),
-    val customerId: String? = null,
+    val customerId: String = "cust_amina",
     val profile: CustomerProfile? = null,
     val recentTx: List<TxSummary> = emptyList(),
     val cases: List<CaseListItem> = emptyList(),
@@ -64,19 +64,20 @@ class SafeUndoViewModel : ViewModel() {
 
     fun start() { run {
         val list = api.customers()
-        val id = _ui.value.customerId ?: list.first().id
+        val id = _ui.value.customerId.ifBlank { list.first().id }
         _ui.update { it.copy(customers = list, customerId = id) }
         refresh(id)
     } }
 
     private suspend fun refresh(id: String) {
+        val list = if (_ui.value.customers.isEmpty()) api.customers() else _ui.value.customers
         val profile = api.profile(id)
         val tx = api.transactions(id, 6)
         val cases = api.cases(id)
-        _ui.update { it.copy(profile = profile, recentTx = tx, cases = cases) }
+        _ui.update { it.copy(customers = list, profile = profile, recentTx = tx, cases = cases) }
     }
 
-    fun reload() { _ui.value.customerId?.let { id -> run { refresh(id) } } }
+    fun reload() { run { refresh(_ui.value.customerId) } }
     fun clearError() = _ui.update { it.copy(error = null) }
 
     fun selectCustomer(id: String) {
@@ -85,7 +86,7 @@ class SafeUndoViewModel : ViewModel() {
     }
 
     fun lookupRecipient(txType: String, number: String) {
-        val id = _ui.value.customerId ?: return
+        val id = _ui.value.customerId
         viewModelScope.launch {
             _lookupName.value = try { api.lookup(id, txType, number).name } catch (e: Exception) { null }
         }
@@ -94,18 +95,19 @@ class SafeUndoViewModel : ViewModel() {
 
     /** Ask SafeUndo about the payment. Flagged -> warning sheet; otherwise continue straight on. */
     fun prepare(d: Draft, onProceed: () -> Unit) {
-        val id = _ui.value.customerId ?: return
+        val id = _ui.value.customerId
         _draft.value = d.copy(recipientName = _lookupName.value)
         run {
             val r = api.score(ScoreRequest(id, d.txType, d.recipient, d.amount))
             _draft.value = _draft.value.copy(recipientName = r.recipientName ?: _lookupName.value)
+            if (_ui.value.profile == null) runCatching { refresh(id) }
             if (r.flagged) _warning.value = r else onProceed()
         }
     }
     fun dismissWarning() { _warning.value = null }
 
     fun send(onDone: () -> Unit) {
-        val id = _ui.value.customerId ?: return
+        val id = _ui.value.customerId
         val d = _draft.value
         run {
             _lastTx.value = api.createTx(TxRequest(id, d.txType, d.recipient, d.amount, d.recipientName))
@@ -115,7 +117,7 @@ class SafeUndoViewModel : ViewModel() {
     }
 
     fun reportMistake(txId: String, reason: String, onOpened: (String) -> Unit) {
-        val id = _ui.value.customerId ?: return
+        val id = _ui.value.customerId
         run {
             val c = api.openCase(CaseRequest(id, txId, reason))
             _ui.update { it.copy(activeCase = c) }
@@ -130,7 +132,7 @@ class SafeUndoViewModel : ViewModel() {
     }
 
     fun advance(ref: String) {
-        val id = _ui.value.customerId ?: return
+        val id = _ui.value.customerId
         run {
             val c = api.advance(ref, AdvanceRequest(4.0))
             _ui.update { it.copy(activeCase = c) }
@@ -141,6 +143,6 @@ class SafeUndoViewModel : ViewModel() {
     fun resetDemo() = run {
         api.reset()
         _ui.update { it.copy(activeCase = null) }
-        _ui.value.customerId?.let { refresh(it) }
+        refresh(_ui.value.customerId)
     }
 }
