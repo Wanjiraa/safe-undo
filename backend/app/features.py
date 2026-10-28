@@ -52,18 +52,17 @@ def make_features(p: Profile, amount: float, tok: str, hour: float, balance: flo
 
 
 def explain(x: np.ndarray, p: Profile, amount: float, recipient_name: str | None = None) -> list[str]:
-    """Plain-language reasons derived from the same features the model sees."""
+    """Plain-language reasons focused on behavioural anomalies (Hakikisha already shows the recipient/till name)."""
     ratio = math.expm1(x[0])
     reasons = []
     if ratio >= 3:
-        reasons.append("This amount is higher than what you usually send. Please double-check the details.")
-    if x[1] == 1.0 and p.n >= 5:
-        who = recipient_name or "this recipient"
-        reasons.append(f"This is your first time sending money to {who}.")
+        reasons.append("This amount is higher than what you usually transact. Please confirm the recipient name and amount.")
     if x[2] >= 0.9:
         reasons.append("You rarely make transactions at this hour.")
     if x[3] >= 3:
         reasons.append("You have made several transactions in a short time.")
     if x[4] >= 0.7:
         reasons.append("This payment uses most of your available M-PESA balance.")
+    if not reasons:
+        reasons.append("Please confirm the recipient name and amount before continuing.")
     return reasons
