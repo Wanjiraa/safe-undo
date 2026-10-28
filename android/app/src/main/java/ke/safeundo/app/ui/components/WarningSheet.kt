@@ -32,10 +32,12 @@ fun SafeUndoWarningSheet(result: ScoreResult, onContinue: () -> Unit, onCancel: 
             Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp).navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            val recipientDisplay = w.recipientName ?: result.recipientName ?: w.recipient
             Box(Modifier.size(64.dp).clip(CircleShape).background(Su.Raised), contentAlignment = Alignment.Center) {
                 Icon(Icons.Outlined.Warning, "Warning", tint = Su.Amber, modifier = Modifier.size(32.dp))
             }
             Text(w.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Su.Text, textAlign = TextAlign.Center)
+            Text("${kes(w.amount)} to $recipientDisplay", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Su.Amber, textAlign = TextAlign.Center)
             SuCard {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Amount", color = Su.Muted, modifier = Modifier.weight(1f))
@@ -43,9 +45,8 @@ fun SafeUndoWarningSheet(result: ScoreResult, onContinue: () -> Unit, onCancel: 
                 }
                 Spacer(Modifier.height(10.dp))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Recipient", color = Su.Muted, modifier = Modifier.weight(1f))
-                    Text(w.recipient, color = Su.Text, fontWeight = FontWeight.SemiBold)
-                    if (w.newRecipient) { Spacer(Modifier.width(8.dp)); Pill("New", Su.Amber.copy(alpha = 0.18f), Su.Amber) }
+                    Text("Sending to", color = Su.Muted, modifier = Modifier.weight(1f))
+                    Text(recipientDisplay, color = Su.Text, fontWeight = FontWeight.SemiBold)
                 }
             }
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {

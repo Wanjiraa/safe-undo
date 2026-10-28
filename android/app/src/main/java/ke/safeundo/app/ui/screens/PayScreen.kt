@@ -64,7 +64,8 @@ fun PayScreen(vm: SafeUndoViewModel, title: String, tabs: List<PayTab>, onBack: 
     val canContinue = validNumber && amount > 0 && !overBalance && (!t.hasAccount || account.isNotBlank())
 
     LaunchedEffect(number, tab) {
-        if (isPhone && phone != null) vm.lookupRecipient(t.txType, phone) else vm.clearLookup()
+        val target = if (isPhone) phone else digits.takeIf { it.length in 5..7 }
+        if (target != null) vm.lookupRecipient(t.txType, target) else vm.clearLookup()
     }
 
     SuScreen {
@@ -91,16 +92,54 @@ fun PayScreen(vm: SafeUndoViewModel, title: String, tabs: List<PayTab>, onBack: 
                         }
                     }
                 }
+            } else if (t.txType == "buy_goods") {
+                Text("Popular Tills (Buy Goods)", color = Su.Text, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DemoContacts.buyGoodsTills.forEach { (merchant, till) ->
+                        Column(
+                            Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(Su.Card)
+                                .border(1.dp, if (number == till) Su.Green else Su.Outline, RoundedCornerShape(12.dp))
+                                .clickable { number = till }.padding(10.dp),
+                        ) {
+                            Text(till, color = Su.Green, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text(merchant, color = Su.Muted, fontSize = 11.sp, maxLines = 1)
+                        }
+                    }
+                }
+            } else if (t.txType == "paybill") {
+                Text("Popular PayBills", color = Su.Text, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DemoContacts.paybills.forEach { pb ->
+                        Column(
+                            Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(Su.Card)
+                                .border(1.dp, if (number == pb.businessNumber) Su.Green else Su.Outline, RoundedCornerShape(12.dp))
+                                .clickable { number = pb.businessNumber; account = pb.sampleAccount }.padding(10.dp),
+                        ) {
+                            Text(pb.businessNumber, color = Su.Green, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text(pb.name, color = Su.Muted, fontSize = 11.sp, maxLines = 1)
+                        }
+                    }
+                }
             }
 
             SuField(
                 label = t.numberLabel, value = number, onChange = { number = it.take(13) }, placeholder = t.numberLabel,
                 keyboard = KeyboardType.Phone,
                 trailing = { Icon(if (isPhone) Icons.Outlined.Person else Icons.Outlined.QrCodeScanner, null, tint = Su.Green, modifier = Modifier.padding(end = 8.dp)) },
-                helper = if (isPhone && phone != null) lookupName else null,
+                helper = if (validNumber) lookupName else null,
             )
             if (t.hasAccount) {
                 SuField("Enter account number", account, { account = it.take(20) }, "Account number", keyboard = KeyboardType.Text)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DemoContacts.paybillAccounts.forEach { acc ->
+                        Text(
+                            acc, color = if (account == acc) Su.Text else Su.Muted, fontSize = 12.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(50))
+                                .background(if (account == acc) Su.Green else Su.Raised)
+                                .clickable { account = acc }.padding(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                    }
+                }
             }
             SuField(
                 label = "Enter Amount", value = amountText,

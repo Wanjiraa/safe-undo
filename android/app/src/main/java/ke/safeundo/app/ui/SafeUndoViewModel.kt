@@ -98,6 +98,7 @@ class SafeUndoViewModel : ViewModel() {
         _draft.value = d.copy(recipientName = _lookupName.value)
         run {
             val r = api.score(ScoreRequest(id, d.txType, d.recipient, d.amount))
+            _draft.value = _draft.value.copy(recipientName = r.recipientName ?: _lookupName.value)
             if (r.flagged) _warning.value = r else onProceed()
         }
     }

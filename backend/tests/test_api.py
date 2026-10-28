@@ -32,7 +32,18 @@ def test_large_amount_new_recipient_flagged(client):
     assert r["can_proceed"] is True            # SafeUndo warns; it never blocks
     assert any("usual send amount" in x for x in r["reasons"])
     assert "1. Yes, continue" in r["ussd_text"]
+    assert r["recipient_name"] in r["ussd_text"]
+    assert "(new recipient)" not in r["ussd_text"]
+    assert r["warning"]["recipient"] == r["recipient_name"]
     assert "0799999999" not in str(r)          # raw number never echoed back
+
+
+def test_distinct_buy_goods_and_paybill_lookup(client):
+    till = client.get("/api/recipients/lookup", params={"customer_id": CID, "tx_type": "buy_goods", "number": "841209"}).json()
+    pb = client.get("/api/recipients/lookup", params={"customer_id": CID, "tx_type": "paybill", "number": "888880"}).json()
+    assert till["name"] == "NAIVAS SUPERMARKET"
+    assert pb["name"] == "KPLC PREPAID"
+    assert till["name"] != pb["name"]
 
 
 def test_invalid_recipient_rejected(client):

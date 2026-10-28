@@ -21,7 +21,7 @@ from .db import clock_offset_hours, conn, init_db, iso, now, parse, set_clock_of
 from .guidance import REASON_LABELS, TYPE_LABELS, guidance
 from .identifiers import mask, normalize, token, valid
 from .ml import anomaly, eta
-from .seed import seed
+from .seed import BUY_GOODS_TILLS, PAYBILL_ACCOUNTS, PAYBILL_NUMBERS, seed
 
 TxType = Literal["send_money", "pochi", "paybill", "buy_goods"]
 Reason = Literal["wrong_number", "wrong_amount", "fraud", "refund", "other"]
@@ -125,6 +125,31 @@ def transactions(cid: str, limit: int = 10):
         return [{**case_svc.tx_summary(r), "has_open_case": r["id"] in reported} for r in rows]
 
 
+def _resolve_recipient(c, customer_id: str, tx_type: TxType, number: str) -> dict:
+    """Simulates M-PESA Hakikisha name resolution: known contacts/merchants resolve; others get a stable name."""
+    norm = normalize(tx_type, number)
+    row = c.execute("SELECT recipient_name FROM transactions WHERE customer_id=? AND recipient_token=? "
+                    "AND recipient_name IS NOT NULL LIMIT 1", (customer_id, token(tx_type, number))).fetchone()
+    if row:
+        return {"name": row["recipient_name"].upper(), "known": True, "simulated": True}
+    if tx_type == "buy_goods" and norm in BUY_GOODS_TILLS:
+        return {"name": BUY_GOODS_TILLS[norm].upper(), "known": True, "simulated": True}
+    if tx_type == "paybill" and norm in PAYBILL_NUMBERS:
+        return {"name": PAYBILL_NUMBERS[norm].upper(), "known": True, "simulated": True}
+    h = int(hashlib.sha256(norm.encode()).hexdigest(), 16)
+    if tx_type == "buy_goods":
+        merchants = ["KILIMANI SUPERMARKET", "UMOJA HARDWARE", "WESTLANDS PHARMACY", "CBD ELECTRONICS",
+                     "KASARANI MINI MART", "NYALI FRESH STORES", "ELDORET AGROVET", "THIKA AUTO SPARES"]
+        return {"name": merchants[h % len(merchants)], "known": False, "simulated": True}
+    if tx_type == "paybill":
+        paybills = ["NAIROBI WATER PAYBILL", "SAFARICOM HOME FIBRE", "KENYA POWER POSTPAID", "ZUKU FIBRE PAYBILL",
+                    "NHIF CONTRIBUTIONS", "KRA DOMESTIC TAXES", "STIMA SACCO PAYBILL", "MWALIMU NATIONAL SACCO"]
+        return {"name": paybills[h % len(paybills)], "known": False, "simulated": True}
+    first = ["DANIEL", "MARY", "JOSEPH", "ESTHER", "SAMUEL", "RUTH", "PETER", "NANCY"]
+    last = ["RWAI", "KAMAU", "ODHIAMBO", "WAFULA", "CHEPKOECH", "MUTHONI", "OMONDI", "KARIUKI"]
+    return {"name": f"{first[h % 8]} {last[(h // 8) % 8]}", "known": False, "simulated": True}
+
+
 @app.get("/api/recipients/lookup")
 def lookup(customer_id: str, tx_type: TxType, number: str):
     """Simulates M-PESA name resolution: known contacts resolve; others get a stable placeholder name."""
@@ -132,14 +157,7 @@ def lookup(customer_id: str, tx_type: TxType, number: str):
         raise HTTPException(422, "Enter a valid number")
     with conn() as c:
         _customer(c, customer_id)
-        row = c.execute("SELECT recipient_name FROM transactions WHERE customer_id=? AND recipient_token=? "
-                        "AND recipient_name IS NOT NULL LIMIT 1", (customer_id, token(tx_type, number))).fetchone()
-    if row:
-        return {"name": row["recipient_name"].upper(), "known": True, "simulated": True}
-    first = ["DANIEL", "MARY", "JOSEPH", "ESTHER", "SAMUEL", "RUTH", "PETER", "NANCY"]
-    last = ["RWAI", "KAMAU", "ODHIAMBO", "WAFULA", "CHEPKOECH", "MUTHONI", "OMONDI", "KARIUKI"]
-    h = int(hashlib.sha256(normalize(tx_type, number).encode()).hexdigest(), 16)
-    return {"name": f"{first[h % 8]} {last[(h // 8) % 8]}", "known": False, "simulated": True}
+        return _resolve_recipient(c, customer_id, tx_type, number)
 
 
 @app.post("/api/protect/score")
@@ -155,16 +173,20 @@ def score(req: ScoreRequest):
         hour = (ts.hour + ts.minute / 60 + 3) % 24
         x = F.make_features(prof, req.amount, tok, hour, cust["balance"], recent)
         res = anomaly.risk_score(x)
-        reasons = F.explain(x, prof, req.amount) if res["flagged"] else []
+        resolved = _resolve_recipient(c, req.customer_id, req.tx_type, req.recipient)
+        recipient_name = resolved["name"]
+        reasons = F.explain(x, prof, req.amount, recipient_name) if res["flagged"] else []
         new = bool(x[1])
         masked = mask(req.tx_type, req.recipient)
         title = "Unusual transaction detected"
-        ussd = (f"{title}\n{_kes(req.amount)} to {masked}" + (" (new recipient)" if new else "")
+        ussd = (f"{title}\n{_kes(req.amount)} to {recipient_name}"
                 + (f"\n{reasons[0]}" if reasons else "") + "\n1. Yes, continue\n2. Cancel")
         return {
             "flagged": res["flagged"], "risk_score": res["risk_score"], "flag_threshold": FLAG_SCORE,
+            "recipient_name": recipient_name,
             "reasons": reasons, "can_proceed": True,
-            "warning": {"title": title, "amount": req.amount, "recipient": masked, "new_recipient": new,
+            "warning": {"title": title, "amount": req.amount, "recipient": recipient_name,
+                        "recipient_masked": masked, "recipient_name": recipient_name, "new_recipient": new,
                         "message": reasons[0] if reasons else "", "options": ["Yes, continue", "Cancel"]} if res["flagged"] else None,
             "ussd_text": ussd if res["flagged"] else None,
             "low_confidence": prof.n < F.MIN_HISTORY, "history_size": prof.n,
@@ -185,13 +207,14 @@ def create_transaction(req: TxRequest):
         tid = f"tx_{random.getrandbits(48):012x}"
         ref = random.choice(string.ascii_uppercase) + "".join(random.choices(string.ascii_uppercase + string.digits, k=9))
         t = iso(now(c))
+        rname = req.recipient_name or _resolve_recipient(c, req.customer_id, req.tx_type, req.recipient)["name"]
         c.execute("INSERT INTO transactions VALUES(?,?,?,?,?,?,?,?,?)",
                   (tid, req.customer_id, req.tx_type, token(req.tx_type, req.recipient),
-                   mask(req.tx_type, req.recipient), req.recipient_name, req.amount, t, ref))
+                   mask(req.tx_type, req.recipient), rname, req.amount, t, ref))
         c.execute("UPDATE customers SET balance=balance-? WHERE id=?", (req.amount, req.customer_id))
         return {"id": tid, "mpesa_ref": ref, "tx_type": req.tx_type, "tx_type_label": TYPE_LABELS[req.tx_type],
                 "amount": req.amount, "transaction_cost": 0.0, "ts": t, "recipient": mask(req.tx_type, req.recipient),
-                "recipient_name": req.recipient_name, "balance": cust["balance"] - req.amount, "simulated": True}
+                "recipient_name": rname, "balance": cust["balance"] - req.amount, "simulated": True}
 
 
 @app.get("/api/guidance")

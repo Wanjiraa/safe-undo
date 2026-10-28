@@ -173,12 +173,19 @@ async function handle(v) {
         const m = {"1": "buy_goods", "2": "paybill", "3": "pochi"}[v];
         if (v === "0") return menu();
         if (!m) return show("Invalid choice.\n1. Buy Goods\n2. PayBill\n3. Pochi la Biashara\n0. Back");
-        ctx = {tx_type: m}; step = "num"; chips(m === "pochi" ? ["0700123401"] : ["523417", "247247"]);
+        ctx = {tx_type: m}; step = "num";
+        chips(m === "buy_goods" ? ["523417", "841209", "619304", "738291"]
+            : m === "paybill"   ? ["247247", "888880", "400200", "522522"]
+            : ["0700123401", "0799999999"]);
         return show({buy_goods: "Enter till number:", paybill: "Enter business number:", pochi: "Enter Pochi number:"}[m]);
       }
       case "num":
         ctx.recipient = v;
-        if (ctx.tx_type === "paybill") { step = "acct"; chips(["ACC001"]); return show("Enter account number:"); }
+        if (ctx.tx_type === "paybill") {
+          step = "acct";
+          chips(["ACC001", "MTR-77412", "14289901", "INV-2049"]);
+          return show("Enter account number:");
+        }
         step = "amt"; chips(["800", "5000", "20000"]); return show("Enter amount:");
       case "acct": ctx.account_ref = v; step = "amt"; chips(["800", "5000", "20000"]); return show("Enter amount:");
       case "amt": {
@@ -186,6 +193,7 @@ async function handle(v) {
         if (!(amount > 0)) return show("Enter a valid amount:");
         ctx.amount = amount;
         const r = await api("/api/protect/score", {method: "POST", body: JSON.stringify({customer_id: cust, tx_type: ctx.tx_type, recipient: ctx.recipient, amount})});
+        ctx.recipient_name = r.recipient_name || (r.warning && r.warning.recipient_name) || null;
         if (r.flagged) { step = "warn"; chips(["1", "2"]); return show(r.ussd_text, {warn: true}); }
         return confirmScreen();
       }
@@ -196,10 +204,10 @@ async function handle(v) {
       case "confirm":
         if (v === "2") return show("Transaction cancelled.", {input: false}), step = "end";
         if (v !== "1") return show("Reply 1 to confirm or 2 to cancel.");
-        { const lk = ["send_money", "pochi"].includes(ctx.tx_type) ? await api(`/api/recipients/lookup?customer_id=${cust}&tx_type=${ctx.tx_type}&number=${encodeURIComponent(ctx.recipient)}`) : null;
-          const tx = await api("/api/transactions", {method: "POST", body: JSON.stringify({customer_id: cust, tx_type: ctx.tx_type, recipient: ctx.recipient, amount: ctx.amount, recipient_name: lk ? lk.name : null})});
+        { const rname = ctx.recipient_name || (await api(`/api/recipients/lookup?customer_id=${cust}&tx_type=${ctx.tx_type}&number=${encodeURIComponent(ctx.recipient)}`)).name;
+          const tx = await api("/api/transactions", {method: "POST", body: JSON.stringify({customer_id: cust, tx_type: ctx.tx_type, recipient: ctx.recipient, amount: ctx.amount, recipient_name: rname, account_ref: ctx.account_ref || null})});
           step = "end";
-          return show(`${tx.mpesa_ref} Confirmed. ${kes(tx.amount)} sent to ${lk ? lk.name : tx.recipient}.\nNew balance ${kes(tx.balance)}.\nMade a mistake? Dial *334# > 3.`, {input: false}); }
+          return show(`${tx.mpesa_ref} Confirmed. ${kes(tx.amount)} sent to ${tx.recipient_name || tx.recipient}.\nNew balance ${kes(tx.balance)}.\nMade a mistake? Dial *334# > 3.`, {input: false}); }
       case "su":
         if (v === "0") return menu();
         if (v === "1") {
@@ -247,7 +255,9 @@ async function handle(v) {
 }
 function confirmScreen() {
   step = "confirm"; chips(["1", "2"]);
-  return show(`Send ${kes(ctx.amount)} to ${ctx.recipient}?\n1. Confirm\n2. Cancel`);
+  const who = ctx.recipient_name || ctx.recipient;
+  const acct = ctx.account_ref ? ` (Acc: ${ctx.account_ref})` : "";
+  return show(`Send ${kes(ctx.amount)} to ${who}${acct}?\n1. Confirm\n2. Cancel`);
 }
 
 $("call").onclick = () => { if (/^\*334#$/.test($("dial").value.trim())) menu(); else { $("dial").value = "*334#"; } };

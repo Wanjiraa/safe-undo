@@ -46,6 +46,8 @@ import java.util.concurrent.TimeUnit
 
 @Serializable data class Warning(
     val title: String, val amount: Double, val recipient: String,
+    @SerialName("recipient_masked") val recipientMasked: String? = null,
+    @SerialName("recipient_name") val recipientName: String? = null,
     @SerialName("new_recipient") val newRecipient: Boolean = false,
     val message: String = "", val options: List<String> = emptyList(),
 )
@@ -53,6 +55,7 @@ import java.util.concurrent.TimeUnit
 @Serializable data class ScoreResult(
     val flagged: Boolean,
     @SerialName("risk_score") val riskScore: Double,
+    @SerialName("recipient_name") val recipientName: String? = null,
     val reasons: List<String> = emptyList(),
     val warning: Warning? = null,
     @SerialName("low_confidence") val lowConfidence: Boolean = false,

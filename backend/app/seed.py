@@ -26,6 +26,21 @@ DEMO = [
          contacts=[("0700323401", "Mum"), ("0700323402", "Tabitha Roommate"), ("0700323403", "Campus Cafe"),
                    ("0700323404", "Peter Study Group")]),
 ]
+BUY_GOODS_TILLS: dict[str, str] = {
+    "523417": "Njoroge Hardware",
+    "841209": "Naivas Supermarket",
+    "619304": "Java House",
+    "738291": "Quickmart",
+    "904512": "Goodlife Pharmacy",
+}
+PAYBILL_NUMBERS: dict[str, str] = {
+    "247247": "Equity Paybill",
+    "888880": "KPLC Prepaid",
+    "400200": "Co-op Bank",
+    "522522": "KCB Paybill",
+    "303030": "Absa Bank",
+}
+PAYBILL_ACCOUNTS: list[str] = ["ACC001", "MTR-77412", "14289901", "INV-2049", "PLOT-12B"]
 CONTACT_NAMES: dict[str, dict[str, str]] = {}
 
 

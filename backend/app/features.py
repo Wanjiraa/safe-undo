@@ -51,14 +51,15 @@ def make_features(p: Profile, amount: float, tok: str, hour: float, balance: flo
     ])
 
 
-def explain(x: np.ndarray, p: Profile, amount: float) -> list[str]:
+def explain(x: np.ndarray, p: Profile, amount: float, recipient_name: str | None = None) -> list[str]:
     """Plain-language reasons derived from the same features the model sees."""
     ratio = math.expm1(x[0])
     reasons = []
     if ratio >= 3:
         reasons.append(f"This is about {ratio:.0f}x your usual send amount (usually around KSh {p.median:,.0f}).")
     if x[1] == 1.0 and p.n >= 5:
-        reasons.append("You have not sent to this recipient before.")
+        who = recipient_name or "this recipient"
+        reasons.append(f"You have not sent to {who} before.")
     if x[2] >= 0.9:
         reasons.append("This is an unusual time of day for your transactions.")
     if x[3] >= 3:
