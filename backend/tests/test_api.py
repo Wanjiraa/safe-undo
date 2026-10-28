@@ -85,3 +85,12 @@ def test_metrics_labelled_synthetic(client):
     assert "synthetic" in m["note"]
     assert m["reversal_prediction"]["resolution_time_hours"]["mae_random_forest"] < \
            m["reversal_prediction"]["resolution_time_hours"]["mae_median_baseline"]
+
+
+def test_anime_presentation_strict_180s_timeline(client):
+    r = client.get("/ussd/presentation.html")
+    assert r.status_code == 200
+    html = r.text
+    assert "const TOTAL_MS = 180000;" in html
+    for code in ["00:00–00:20", "00:20–00:45", "00:45–01:20", "01:20–01:35", "01:35–02:00", "02:00–02:45", "02:45–03:00"]:
+        assert code in html

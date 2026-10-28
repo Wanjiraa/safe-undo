@@ -289,5 +289,10 @@ def root():
     return RedirectResponse("/ussd/")
 
 
+@app.get("/presentation", include_in_schema=False)
+def presentation():
+    return RedirectResponse("/ussd/presentation.html")
+
+
 if USSD_DIR.exists():
     app.mount("/ussd", StaticFiles(directory=USSD_DIR, html=True), name="ussd")
