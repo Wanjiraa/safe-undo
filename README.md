@@ -17,9 +17,10 @@ It **complements** existing M-PESA reversal mechanisms. It never reverses anythi
 | Path | What it is |
 |---|---|
 | `backend/` | FastAPI + SQLite + scikit-learn. One shared brain for both channels |
-| `ussd-sim/` | Web USSD simulator (`*334#`), served by the backend at `/ussd/` |
+| `ussd-sim/` | Web USSD simulator (`*334#`) at `/ussd/`, 3-minute interactive Anime Cinema Presentation at `/presentation` (`ussd-sim/presentation.html`), and rendered 1080p MP4 film (`ussd-sim/SafeUndo_Anime_Demo_3min.mp4`) |
 | `android/` | Kotlin + Jetpack Compose app that mimics My OneApp's dark UI with SafeUndo integrated |
-| `docs/` | Architecture (`docs/ARCHITECTURE.md`) and 4-minute demo script (`docs/DEMO.md`) |
+| `scripts/render_anime_film.py` | Reproducible 1920×1080 30fps (`5,400` frames = `180.00s`) MP4 video and stereo 44.1 kHz audio renderer |
+| `docs/` | Technical Brief (`docs/TECHNICAL_BRIEF.md`, `docs/SafeUndo_Technical_Brief.docx`), Architecture (`docs/ARCHITECTURE.md`), 4-minute demo script (`docs/DEMO.md`), and Anime Film Production Book (`docs/ANIME_FILM_PRODUCTION_BOOK.md`) |
 | `.devcontainer/` | GitHub Codespaces / Dev Container config (Python 3.12, port 8000) |
 | `.github/workflows/` | GitHub Actions CI (`ci.yml`) running `python -m app.bootstrap` and `pytest` |
 
