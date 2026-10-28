@@ -56,14 +56,14 @@ def explain(x: np.ndarray, p: Profile, amount: float, recipient_name: str | None
     ratio = math.expm1(x[0])
     reasons = []
     if ratio >= 3:
-        reasons.append(f"This is about {ratio:.0f}x your usual send amount (usually around KSh {p.median:,.0f}).")
+        reasons.append("This amount is higher than what you usually send. Please double-check the details.")
     if x[1] == 1.0 and p.n >= 5:
         who = recipient_name or "this recipient"
-        reasons.append(f"You have not sent to {who} before.")
+        reasons.append(f"This is your first time sending money to {who}.")
     if x[2] >= 0.9:
-        reasons.append("This is an unusual time of day for your transactions.")
+        reasons.append("You rarely make transactions at this hour.")
     if x[3] >= 3:
-        reasons.append(f"You made {int(x[3])} other transactions in the last hour.")
+        reasons.append("You have made several transactions in a short time.")
     if x[4] >= 0.7:
-        reasons.append(f"This is {x[4] * 100:.0f}% of your available balance.")
+        reasons.append("This payment uses most of your available M-PESA balance.")
     return reasons

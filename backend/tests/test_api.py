@@ -30,7 +30,7 @@ def test_large_amount_new_recipient_flagged(client):
     r = client.post("/api/protect/score", json={"customer_id": CID, "recipient": "0799999999", "amount": 20000}).json()
     assert r["flagged"] is True
     assert r["can_proceed"] is True            # SafeUndo warns; it never blocks
-    assert any("usual send amount" in x for x in r["reasons"])
+    assert any("higher than what you usually send" in x for x in r["reasons"])
     assert "1. Yes, continue" in r["ussd_text"]
     assert r["recipient_name"] in r["ussd_text"]
     assert "(new recipient)" not in r["ussd_text"]
