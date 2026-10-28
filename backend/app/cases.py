@@ -13,7 +13,21 @@ FLOW = ["submitted", "under_review", "approved", "completed"]
 LABELS = {"submitted": "Submitted", "under_review": "Under review", "approved": "Approved",
           "completed": "Completed", "rejected": "Rejected"}
 TERMINAL = {"completed", "rejected"}
-SIM_REJECTION = "Reason not available (simulated outcome)"
+REJECTION_REASONS_PERSON = [
+    "Insufficient funds in the recipient's M-PESA account (funds already withdrawn or used). Contact 100 for further help.",
+    "The recipient declined the reversal request. Contact Safaricom customer care (100) for guidance.",
+    "Reversal could not be completed because the recipient's balance was below the transaction amount.",
+]
+REJECTION_REASONS_BUSINESS = [
+    "The receiving business declined the reversal as the payment was already settled. Contact the business with your M-PESA ID.",
+    "Merchant reversal requires direct authorisation from the business. Please contact the merchant or call 100.",
+]
+
+
+def _rejection_reason(ref: str, tx_type: str) -> str:
+    h = int(hashlib.sha256(ref.encode()).hexdigest(), 16)
+    pool = REJECTION_REASONS_BUSINESS if tx_type in ("paybill", "buy_goods") else REJECTION_REASONS_PERSON
+    return pool[h % len(pool)]
 DISCLAIMER = ("Status updates in this prototype are simulated. SafeUndo shows real statuses only when it "
               "receives trustworthy status data from an authorised source.")
 
@@ -152,7 +166,8 @@ def advance_case(c, ref: str, hours: float = 4.0, force: str | None = None) -> d
         nxt = "rejected" if int(hashlib.sha256(ref.encode()).hexdigest(), 16) % 100 < 12 else "approved"
     else:
         nxt = "completed"
-    rej = SIM_REJECTION if nxt == "rejected" else None
+    tx = _tx(c, case["transaction_id"])
+    rej = _rejection_reason(ref, tx["tx_type"]) if nxt == "rejected" else None
     c.execute("UPDATE cases SET status=?, status_entered_at=?, rejection_reason=? WHERE id=?", (nxt, t, rej, case["id"]))
     c.execute("INSERT INTO status_history(case_id,status,ts,note) VALUES(?,?,?,?)",
               (case["id"], nxt, t, f"{LABELS[nxt]} (simulated)" + (f": {rej}" if rej else "")))
