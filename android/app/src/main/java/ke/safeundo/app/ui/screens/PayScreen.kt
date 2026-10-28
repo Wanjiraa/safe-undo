@@ -128,6 +128,21 @@ fun PayScreen(vm: SafeUndoViewModel, title: String, tabs: List<PayTab>, onBack: 
                 trailing = { Icon(if (isPhone) Icons.Outlined.Person else Icons.Outlined.QrCodeScanner, null, tint = Su.Green, modifier = Modifier.padding(end = 8.dp)) },
                 helper = if (validNumber) lookupName else null,
             )
+            if (isPhone) {
+                val sampleList = if (t.txType == "pochi") DemoContacts.pochiChips else DemoContacts.demoPhoneChips
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    sampleList.forEach { (num, tag) ->
+                        Column(
+                            Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(Su.Card)
+                                .border(1.dp, if (number == num) Su.Green else Su.Outline, RoundedCornerShape(10.dp))
+                                .clickable { number = num }.padding(horizontal = 8.dp, vertical = 6.dp),
+                        ) {
+                            Text(num, color = Su.Green, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                            Text(tag, color = Su.Muted, fontSize = 10.sp, maxLines = 1)
+                        }
+                    }
+                }
+            }
             if (t.hasAccount) {
                 SuField("Enter account number", account, { account = it.take(20) }, "Account number", keyboard = KeyboardType.Text)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -152,6 +167,16 @@ fun PayScreen(vm: SafeUndoViewModel, title: String, tabs: List<PayTab>, onBack: 
                 },
                 helperColor = if (overBalance) Su.Red else Su.Muted,
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("800" to "Usual (KSh 800)", "5000" to "KSh 5,000", "20000" to "Unusual (KSh 20,000)").forEach { (amt, label) ->
+                    Text(
+                        label, color = if (amountText == amt) Su.Text else Su.Muted, fontSize = 12.sp,
+                        modifier = Modifier.clip(RoundedCornerShape(50))
+                            .background(if (amountText == amt) Su.Green else Su.Raised)
+                            .clickable { amountText = amt }.padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
+                }
+            }
 
             Text("Select Payment Method", color = Su.Text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {

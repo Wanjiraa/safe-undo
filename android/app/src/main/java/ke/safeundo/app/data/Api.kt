@@ -164,9 +164,26 @@ interface SafeUndoApi {
 val AppJson = Json { ignoreUnknownKeys = true; coerceInputValues = true; encodeDefaults = true; explicitNulls = false }
 
 object ApiClient {
+    private val fallbackHosts = listOf("127.0.0.1", "10.0.2.2", "10.76.110.121")
+
     val api: SafeUndoApi by lazy {
         val http = OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).build()
+            .connectTimeout(3, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                val req = chain.request()
+                var lastErr: IOException? = null
+                for (host in fallbackHosts) {
+                    val url = req.url.newBuilder().scheme("http").host(host).port(8000).build()
+                    try {
+                        return@addInterceptor chain.proceed(req.newBuilder().url(url).build())
+                    } catch (e: IOException) {
+                        lastErr = e
+                    }
+                }
+                throw lastErr ?: IOException("Backend unreachable")
+            }
+            .build()
         Retrofit.Builder()
             .baseUrl(BuildConfig.API_BASE_URL)
             .client(http)

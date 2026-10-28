@@ -26,6 +26,17 @@ object DemoContacts {
         PaybillOption("KCB Paybill", "522522", "INV-2049"),
     )
     val paybillAccounts = listOf("ACC001", "MTR-77412", "14289901", "INV-2049")
+    val demoPhoneChips = listOf(
+        "0700123401" to "Usual contact",
+        "0799999999" to "New number",
+        "0712345678" to "New number",
+    )
+    val pochiChips = listOf(
+        "0700123401" to "Mama Wanjiru",
+        "0700223401" to "Stockist Hassan",
+        "0799999999" to "New Pochi",
+        "0745112233" to "New Pochi",
+    )
 
     fun forCustomer(id: String?): List<Pair<String, String>> = byCustomer[id].orEmpty()
 }
